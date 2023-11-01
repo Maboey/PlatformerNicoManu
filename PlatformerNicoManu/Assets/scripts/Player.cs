@@ -13,17 +13,19 @@ public class Player : MonoBehaviour
 
     private CharacterController characterController;
     private Vector3 movementDirection = Vector3.zero;
+    private Animator animator;
 
     private void Start()
     {
         characterController = this.gameObject.GetComponent<CharacterController>();
+        animator = this.gameObject.GetComponent<Animator>();
     }
     void Update()
     {
-        InputAndMovement();
+        InputAndMovementAndAnimation();
     }
 
-    void InputAndMovement()
+    void InputAndMovementAndAnimation()
     {
         
         bool playerGrounded = characterController.isGrounded;
@@ -59,9 +61,9 @@ public class Player : MonoBehaviour
         //the forward direction for the player becomes where he's trying to go and the speed becomes the magnitude he's trying to go
         if (cameraDirection != Vector3.zero)
         {
-            transform.forward = cameraDirection;
+            transform.right = -cameraDirection;
         }
-        Vector3 inputMovement = transform.forward * movementSpeed * runningSpeed * inputMagnitude;
+        Vector3 inputMovement = -transform.right * movementSpeed * runningSpeed * inputMagnitude;
 
         characterController.Move(inputMovement * Time.deltaTime);
 
@@ -82,6 +84,34 @@ public class Player : MonoBehaviour
 
         characterController.Move(movementDirection * Time.deltaTime);
 
+        //animations
+        if (IsRunning())
+        {
+            if (inputMagnitude > 0f)
+            {
+                animator.SetBool("running", true);
+                animator.SetBool("walking", true);
+            }
+            else
+            {
+                animator.SetBool("running", false);
+                animator.SetBool("walking", false);
+            }
+            
+        }
+        else
+        {
+            if (inputMagnitude > 0f)
+            {
+                animator.SetBool("walking", true);
+            }
+            else
+            {
+                animator.SetBool("walking", false);
+                animator.SetBool("running", false);
+            }
+            
+        }
     }
     bool IsRunning()
     {
