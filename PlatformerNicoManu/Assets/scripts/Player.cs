@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class Player : MonoBehaviour
 {
@@ -9,31 +10,40 @@ public class Player : MonoBehaviour
 
     [SerializeField]
     private Transform playerCamTransform;
-    private bool doubleJumped = true, playerRunning;
+    public bool isGrabingEdge = false;
 
     private CharacterController characterController;
-    private Vector3 movementDirection = Vector3.zero;
     private Animator animator;
-    private bool iscrouching;
-    private float standingHeight, crouchHeight;
+    private Vector3 movementDirection = Vector3.zero;
+    private bool doubleJumped = true, playerRunning, iscrouching, playerGrounded;
+    private float standingHeight, crouchHeight, inputMagnitude;
 
     private void Start()
     {
         characterController = this.gameObject.GetComponent<CharacterController>();
-        animator = this.gameObject.GetComponent<Animator>();
+        animator = GetComponentInChildren<Animator>();
         standingHeight = characterController.height;
         crouchHeight = standingHeight / 2;
     }
     void Update()
     {
-        InputAndMovementAndAnimation();
+        if(isGrabingEdge)
+        {
+            LedgeMovementAndAnimation();
+        }
+        else
+        {
+            InputToMovement();
+        }
+        Animate();
     }
 
-    void InputAndMovementAndAnimation()
+    void InputToMovement()
     {
-        
-        bool playerGrounded = characterController.isGrounded;
-        animator.SetBool("grounded", playerGrounded);
+        //Check and save if the character is grounded
+        playerGrounded = characterController.isGrounded;
+
+        // ========== Run / Walk ==========
 
         //if the player is running we set the speed acordingly
         float runningSpeed;
@@ -48,11 +58,11 @@ public class Player : MonoBehaviour
 
         //we get the direction at wich the player is trying to go (and the magnitude at wich it tries to go)
         Vector3 cameraDirection = new Vector3(Input.GetAxisRaw("Horizontal"), 0, Input.GetAxisRaw("Vertical"));
-        float inputMagnitude = Mathf.Clamp01(cameraDirection.magnitude);
+        inputMagnitude = Mathf.Clamp01(cameraDirection.magnitude);
         cameraDirection = Quaternion.AngleAxis(playerCamTransform.rotation.eulerAngles.y, Vector3.up) * cameraDirection;
         cameraDirection.Normalize();
 
-        //if the player stops trying to run we save it
+        //if the player stops trying to run we save it (to be able to keep the player running from the moment he pushed the button "run" until he releases the joystick that serves for movement)
         if (inputMagnitude <= 0.1f && inputMagnitude >= -0.1f)
         {
             //stoped
@@ -62,13 +72,14 @@ public class Player : MonoBehaviour
         //the forward direction for the player becomes where he's trying to go and the speed becomes the magnitude he's trying to go
         if (cameraDirection != Vector3.zero)
         {
-            transform.right = -cameraDirection;
+            transform.right = cameraDirection;
         }
-        Vector3 inputMovement = -transform.right * movementSpeed * runningSpeed * inputMagnitude;
+        Vector3 inputMovement = transform.right * movementSpeed * runningSpeed * inputMagnitude;
 
+        //Here we apply the forward speed to the player with an angle that has been calculated from the camera
         characterController.Move(inputMovement * Time.deltaTime);
 
-        //jumping
+        // ========== jumping ==========
         if (Input.GetButtonDown("Jump") && playerGrounded)
         {
             doubleJumped = false;
@@ -82,30 +93,36 @@ public class Player : MonoBehaviour
             animator.Play("doubleSaut");
         }
 
-        //crouching
-        if(Input.GetButton("crouch") && playerGrounded && !playerRunning)
+        // ========== crouching ==========
+        //Here we transform th height of the character for the collider to match the animations (and update the center of it)
+        if (Input.GetButton("crouch") && playerGrounded)
         {
             iscrouching = true;
             characterController.height = crouchHeight;
             characterController.center = new Vector3(0,crouchHeight/2,0);
-            animator.SetBool("crouch", true);
         }
         else
         {
             iscrouching = false;
             characterController.height = standingHeight;
             characterController.center = new Vector3(0, standingHeight / 2, 0);
-            animator.SetBool("crouch", false);
         }
 
-        movementDirection.y -= gravity * Time.deltaTime;
+        if(iscrouching)
+        {
+            playerRunning = false;
+        }
 
-        characterController.Move(movementDirection * Time.deltaTime);
+        movementDirection.y -= gravity * Time.deltaTime; // <-- Here we apply gravity to the vertical direction that we are gonna set to the player
 
-        //animations
+        characterController.Move(movementDirection * Time.deltaTime); // Here we apply vertical speed to the player
+    }
+    void Animate()
+    {
+        animator.SetBool("grounded", playerGrounded);
         if (IsRunning())
         {
-            if (inputMagnitude > 0f)
+            if (inputMagnitude > 0f) // as long as the player is pushing the left joystick in any direction and was already running or walking we continue
             {
                 animator.SetBool("running", true);
                 animator.SetBool("walking", true);
@@ -115,7 +132,7 @@ public class Player : MonoBehaviour
                 animator.SetBool("running", false);
                 animator.SetBool("walking", false);
             }
-            
+
         }
         else
         {
@@ -128,8 +145,9 @@ public class Player : MonoBehaviour
                 animator.SetBool("walking", false);
                 animator.SetBool("running", false);
             }
-            
+
         }
+        animator.SetBool("crouch", iscrouching);
     }
     bool IsRunning()
     {
@@ -151,4 +169,10 @@ public class Player : MonoBehaviour
         }
     }
 
+    void LedgeMovementAndAnimation()
+    {
+    }
+    public void StopGrabingEdge()
+    {
+    }
 }
