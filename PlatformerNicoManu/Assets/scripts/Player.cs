@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
+using UnityEngine.SceneManagement;
 
 public class Player : MonoBehaviour
 {
@@ -174,5 +175,12 @@ public class Player : MonoBehaviour
     }
     public void StopGrabingEdge()
     {
+    }
+    private void OnTriggerEnter(Collider other)
+    {
+        if(other.tag == "goal")
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex + 1);
+        }
     }
 }
